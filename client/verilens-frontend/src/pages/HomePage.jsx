@@ -41,7 +41,6 @@ export default function HomePage() {
       const data = await response.json();
       setResult(data);
     } catch (err) {
-      // Updated error message to be more helpful for live deployment
       setError("Backend unreachable. Please check if the Render server and Ngrok tunnel are active.");
     } finally {
       setLoading(false);
@@ -101,4 +100,49 @@ export default function HomePage() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-lg border border-slate
+            className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden"
+          >
+            <div className={`px-6 py-5 border-b flex justify-between items-center ${getScoreColor(result.score)}`}>
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-white/50 rounded-full">
+                  {result.score >= 80 ? <CheckCircle2 className="w-6 h-6" /> : 
+                   result.score >= 50 ? <Activity className="w-6 h-6" /> : 
+                   <XCircle className="w-6 h-6" />}
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase opacity-70">Verdict</p>
+                  <h3 className="text-2xl font-bold">{result.verdict}</h3>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold uppercase opacity-70">Credibility</p>
+                <div className="text-4xl font-black">{result.score}/100</div>
+              </div>
+            </div>
+
+            <div className="p-6 md:p-8 space-y-6">
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold uppercase text-slate-400 flex items-center gap-2">
+                  <Search className="w-4 h-4" /> AI Assessment
+                </h4>
+                <p className="text-lg text-slate-700 font-medium leading-relaxed">
+                  {result.reason}
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100">
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 w-full">
+                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Sources Analyzed</p>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <Newspaper className="w-4 h-4" />
+                    {result.metadata?.sources_found || 0} Found
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
