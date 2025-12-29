@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { 
-  AlertTriangle, 
-  Search, 
-  Activity, 
-  CheckCircle2, 
-  XCircle, 
-  Newspaper,
-  Loader2
+  AlertTriangle, Search, Activity, CheckCircle2, 
+  XCircle, Newspaper, Loader2 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// --- CLOUD-READY URL LOGIC ---
-const BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_REACT_APP_API_URL || "http://localhost:3000";
+// --- CONFIGURATION ---
+// 1. Check Vercel Environment Variables first
+// 2. Default to your known Render URL if Vercel is empty
+const RENDER_URL = "https://verilens-final.onrender.com"; // <-- Ensure this is your Render name
+const BASE_URL = import.meta.env.VITE_API_URL || RENDER_URL;
 const API_URL = `${BASE_URL}/api/verify`;
 
 export default function HomePage() {
@@ -20,9 +18,15 @@ export default function HomePage() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (e) => {
+    // Prevent page refresh if inside a form
+    if (e) e.preventDefault();
+    
+    // DEBUG: Direct proof the click is happening
+    console.log("Button clicked! Current API_URL:", API_URL);
+
     if (!text.trim() || text.length < 5) {
-      setError("Please enter some text to analyze.");
+      setError("Please enter at least 5 characters of news text.");
       return;
     }
     
@@ -31,17 +35,24 @@ export default function HomePage() {
     setResult(null);
 
     try {
+      console.log("Sending request to:", API_URL);
       const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: text }),
       });
 
-      if (!response.ok) throw new Error("Server error");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Server Error: ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log("Response received:", data);
       setResult(data);
     } catch (err) {
-      setError("Backend unreachable. Please check if the Render server and Ngrok tunnel are active.");
+      console.error("Analysis Error:", err);
+      setError(`Connection Failed: ${err.message}. Check if your Render backend is 'Live' and your Ngrok tunnel is 'Online'.`);
     } finally {
       setLoading(false);
     }
@@ -55,52 +66,54 @@ export default function HomePage() {
 
   return (
     <div className="space-y-10">
-      {/* Hero */}
-      <div className="text-center space-y-4 animate-fade-in">
+      <div className="text-center space-y-4">
         <h1 className="text-4xl font-extrabold text-slate-900">
           Verify Crisis News <span className="text-blue-600">Instantly</span>
         </h1>
         <p className="text-lg text-slate-600 max-w-xl mx-auto">
-          AI-powered truth analysis. We check sources, scientific plausibility, and logical consistency.
+          AI-powered truth analysis. We check sources, plausibility, and consistency.
         </p>
       </div>
 
-      {/* Input Card */}
-      <div className="bg-white rounded-2xl shadow-xl shadow-slate-200 border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden max-w-2xl mx-auto">
         <div className="h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
-        
-        <div className="p-6 md:p-8 space-y-6">
+        <div className="p-6 space-y-6">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="w-full h-40 p-5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
-            placeholder="Paste news text, claims, or WhatsApp forwards here..."
+            className="w-full h-40 p-5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none text-slate-700"
+            placeholder="Paste news text or claims here..."
           ></textarea>
 
           {error && (
-            <div className="flex items-center gap-2 text-rose-600 bg-rose-50 px-4 py-3 rounded-lg text-sm font-medium">
-              <AlertTriangle className="w-4 h-4" />
-              {error}
+            <div className="flex items-start gap-2 text-rose-600 bg-rose-50 px-4 py-3 rounded-lg text-sm font-medium">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
           <button
-            onClick={handleAnalyze}
+            type="button"
+            onClick={(e) => handleAnalyze(e)}
             disabled={loading}
-            className="w-full py-4 rounded-xl bg-slate-900 text-white font-semibold text-lg hover:bg-slate-800 disabled:opacity-70 transition-all flex items-center justify-center gap-2"
+            className="w-full py-4 rounded-xl bg-slate-900 text-white font-semibold text-lg hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Analyze Credibility"}
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Analyzing via Local AI...</span>
+              </>
+            ) : "Analyze Credibility"}
           </button>
         </div>
       </div>
 
-      {/* Results Section */}
       <AnimatePresence>
         {result && (
           <motion.div 
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden"
+            className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden max-w-2xl mx-auto"
           >
             <div className={`px-6 py-5 border-b flex justify-between items-center ${getScoreColor(result.score)}`}>
               <div className="flex items-center gap-4">
@@ -115,27 +128,27 @@ export default function HomePage() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xs font-bold uppercase opacity-70">Credibility</p>
+                <p className="text-xs font-bold uppercase opacity-70">Score</p>
                 <div className="text-4xl font-black">{result.score}/100</div>
               </div>
             </div>
 
-            <div className="p-6 md:p-8 space-y-6">
+            <div className="p-6 space-y-6">
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold uppercase text-slate-400 flex items-center gap-2">
-                  <Search className="w-4 h-4" /> AI Assessment
+                  <Search className="w-4 h-4" /> AI Analysis Result
                 </h4>
                 <p className="text-lg text-slate-700 font-medium leading-relaxed">
                   {result.reason}
                 </p>
               </div>
 
-              <div className="pt-4 border-t border-slate-100">
-                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 w-full">
-                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Sources Analyzed</p>
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                  <p className="text-xs font-bold text-slate-400 uppercase">Sources Found</p>
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                     <Newspaper className="w-4 h-4" />
-                    {result.metadata?.sources_found || 0} Found
+                    {result.metadata?.sources_found || 0}
                   </div>
                 </div>
               </div>
