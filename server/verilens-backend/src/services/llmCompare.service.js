@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434/api/generate";
+// --- CLOUD-SMART URL LOGIC ---
+// If OLLAMA_BASE_URL exists (on Render), use it. Otherwise, use localhost.
+const BASE_OLLAMA_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+const OLLAMA_URL = `${BASE_OLLAMA_URL}/api/generate`;
 const MODEL = "mistral"; 
 
 // Helper: Clean Ollama's output to prevent JSON parse errors
@@ -33,7 +36,7 @@ const buildSmartPrompt = (userText, sources) => {
   {
     "verdict": "String",
     "credibility_score": Number (0-100),
-    "assessment": "String (Cite specific sources if available, e.g., 'According to BBC...')",
+    "assessment": "String",
     "is_scientifically_possible": Boolean
   }
   `;
@@ -41,41 +44,40 @@ const buildSmartPrompt = (userText, sources) => {
 
 export const llmCompare = async (userText, sources, claimInfo) => {
   try {
-    // [DEBUGGING] Proves exactly what data we have
-    console.log(`\n🔍 [LLM Check] Sending ${sources.length} articles to Ollama...`);
+    console.log(`\n📡 [AI Bridge] Connecting to: ${BASE_OLLAMA_URL}`);
+    console.log(`🔍 [Analysis] Model: ${MODEL} | Sources: ${sources.length}`);
     
-    if (sources.length > 0) {
-      // We log the WHOLE object so we can see if it uses 'title', 'headline', or something else
-      console.log("   📄 Sample Data Structure:", JSON.stringify(sources[0]).substring(0, 150) + "..."); 
-    } else {
-      console.log(`   ⚠️ No sources found. Relying on Internal Knowledge.`);
-    }
-
     const response = await axios.post(OLLAMA_URL, {
       model: MODEL,
       prompt: buildSmartPrompt(userText, sources),
       stream: false,
       format: "json",
-      options: { temperature: 0.1 }
-    }, { timeout: 30000 });
+      options: { 
+        temperature: 0.1,
+        num_ctx: 4096 
+      }
+    }, { 
+      timeout: 45000, // Increased timeout for slow tunnels
+      headers: { 'Content-Type': 'application/json' }
+    });
 
     const cleanRaw = cleanJsonOutput(response.data.response);
     const parsed = JSON.parse(cleanRaw);
     
-    // Normalize scores
-    if (parsed.credibility_score === undefined && parsed.confidence_score !== undefined) {
-      parsed.credibility_score = parsed.confidence_score;
-    }
-
-    console.log(`✅ [LLM Result] Verdict: ${parsed.verdict} | Score: ${parsed.credibility_score}`);
+    console.log(`✅ [Success] AI Response received via tunnel.`);
     return parsed;
 
   } catch (error) {
-    console.error("⚠️ [LLM ERROR]:", error.message);
+    console.error("❌ [LLM BRIDGE ERROR]:", error.message);
+    
+    // Detailed error logging to help you debug in Render logs
+    if (error.code === 'ECONNABORTED') console.error("   Reason: Request timed out (Tunnel too slow).");
+    if (error.code === 'ECONNREFUSED') console.error("   Reason: Laptop/Ngrok is offline.");
+
     return { 
         verdict: "UNVERIFIED", 
         credibility_score: 0, 
-        assessment: "AI analysis failed. Please try again.", 
+        assessment: "AI analysis failed. Please check if your laptop is online and Ngrok is running.", 
         is_scientifically_possible: true 
     };
   }
