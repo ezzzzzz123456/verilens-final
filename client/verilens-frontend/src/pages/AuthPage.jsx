@@ -15,8 +15,11 @@ export default function AuthPage() {
     e.preventDefault();
     setLoading(true);
     
+    // --- CLOUD-READY URL LOGIC ---
+    // Uses Vercel environment variable if available, otherwise falls back to local
+    const BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_REACT_APP_API_URL || "http://localhost:3000";
     const endpoint = isLogin ? '/login' : '/signup';
-    const url = `http://localhost:3000/api/auth${endpoint}`;
+    const url = `${BASE_URL}/api/auth${endpoint}`;
 
     try {
       const res = await fetch(url, {
@@ -28,6 +31,7 @@ export default function AuthPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Something went wrong');
 
+      // Update state with user info and token
       login({ username: data.username, email: data.email }, data.token);
       toast.success(isLogin ? "Welcome back!" : "Account created successfully!");
       navigate('/');
